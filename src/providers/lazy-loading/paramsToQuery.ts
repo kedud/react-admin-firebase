@@ -2,6 +2,7 @@ import {
   CollectionReference,
   OrderByDirection,
   Query,
+  WhereFilterOp,
 } from '@firebase/firestore-types';
 import { IFirestoreLogger, messageTypes } from '../../misc';
 import { findLastQueryCursor, getQueryCursor } from './queryCursors';
@@ -46,12 +47,33 @@ export async function paramsToQuery<
     : sortStepQuery;
 }
 
+function operatorFromFilter(operator: string) : WhereFilterOp {
+  switch(operator) {
+    case 'lt':
+      return '<';
+    case 'lte':
+      return '<=';
+    case 'gt':
+      return '>';
+    case 'gte':
+      return '>=';
+    default:
+      return '==';
+  }
+}
+
 export function filtersToQuery(
   query: Query,
   filters: { [fieldName: string]: any }
 ): Query {
+  const operatorRegex = /_(lt|lte|gte|gt)$/;
   Object.keys(filters).forEach((fieldName) => {
-    query = query.where(fieldName, '==', filters[fieldName]);
+    const operatorMatch = fieldName.match(operatorRegex)
+    let operator = <WhereFilterOp> '==';
+    if (operatorMatch) {
+      operator = operatorFromFilter(operatorMatch[1]);
+    }
+    query = query.where(fieldName, operator, filters[fieldName]);
   });
   return query;
 }
